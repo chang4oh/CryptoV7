@@ -1,19 +1,41 @@
-import meilisearch
 import logging
-from app.core.config import settings
-import time
+import os
 
 logger = logging.getLogger(__name__)
+
+SAFE_MODE = os.environ.get("CRYPTOV7_SAFE_MODE", "false").lower() == "true"
+
+# Attempt to import meilisearch, but don't fail if it's not installed
+try:
+    import meilisearch
+    MEILISEARCH_AVAILABLE = True
+except ImportError:
+    logger.warning("Meilisearch module not available. Admin functionality will be limited.")
+    MEILISEARCH_AVAILABLE = False
+
+# Import settings only if meilisearch is available
+if MEILISEARCH_AVAILABLE:
+    try:
+        from app.core.config import settings
+    except Exception as e:
+        logger.error(f"Failed to import settings: {str(e)}")
+        MEILISEARCH_AVAILABLE = False
 
 class MeiliSearchAdminService:
     """Service for managing MeiliSearch administration tasks."""
     
     def __init__(self):
         """Initialize with master key (required for admin operations)."""
-        self.admin_client = meilisearch.Client(
-            settings.MEILISEARCH_URL,
-            settings.MEILISEARCH_MASTER_KEY
-        )
+        self.admin_client = None
+        
+        if MEILISEARCH_AVAILABLE:
+            try:
+                self.admin_client = meilisearch.Client(
+                    settings.MEILISEARCH_URL,
+                    settings.MEILISEARCH_MASTER_KEY
+                )
+            except Exception as e:
+                logger.error(f"Failed to initialize MeiliSearch client: {str(e)}")
     
     def create_search_key(self, key_name="search_key", expires_at=None):
         """
@@ -27,6 +49,10 @@ class MeiliSearchAdminService:
         Returns:
             The created key information dict, including the key itself
         """
+        if not MEILISEARCH_AVAILABLE or self.admin_client is None:
+            logger.warning("MeiliSearch not available - cannot create search key")
+            return {"error": "MeiliSearch not available"}
+            
         # Define search-only permissions
         actions = ["search", "documents.get", "indexes.get", "stats.get"]
         indexes = ["*"]  # All indexes
@@ -53,6 +79,10 @@ class MeiliSearchAdminService:
                 "expiresAt": expires_at
             })
             
+            # Make sure key_info is a proper dictionary
+            if not isinstance(key_info, dict):
+                key_info = {"key": str(key_info)}
+                
             logger.info(f"Created new search key: {key_name}")
             return key_info
         except Exception as e:
@@ -61,6 +91,10 @@ class MeiliSearchAdminService:
     
     def delete_key(self, key):
         """Delete an API key."""
+        if not MEILISEARCH_AVAILABLE or self.admin_client is None:
+            logger.warning("MeiliSearch not available - cannot delete key")
+            return {"error": "MeiliSearch not available"}
+            
         try:
             self.admin_client.delete_key(key)
             logger.info(f"Deleted key: {key}")
@@ -75,6 +109,10 @@ class MeiliSearchAdminService:
         
         This will create a search key if it doesn't exist and return the key value.
         """
+        if not MEILISEARCH_AVAILABLE or self.admin_client is None:
+            logger.warning("MeiliSearch not available - cannot setup search key")
+            return None
+            
         # Try to create a new search key (will return existing one if it already exists)
         key_info = self.create_search_key()
         
@@ -82,11 +120,24 @@ class MeiliSearchAdminService:
             logger.error(f"Failed to create search key: {key_info['error']}")
             return None
         
+        # Convert key_info to dictionary if it's not already
+        if not isinstance(key_info, dict):
+            return str(key_info)
+            
         # Return the key value
-        return key_info.get("key")
+        key_value = key_info.get("key")
+        if key_value is None:
+            logger.error("Key info doesn't contain a 'key' field")
+            return str(key_info)
+            
+        return key_value
     
     def verify_key_permissions(self, key):
         """Verify that a key has the necessary permissions."""
+        if not MEILISEARCH_AVAILABLE or self.admin_client is None:
+            logger.warning("MeiliSearch not available - cannot verify key permissions")
+            return False
+            
         try:
             keys = self.admin_client.get_keys()
             
@@ -109,6 +160,10 @@ class MeiliSearchAdminService:
     
     def setup_indexes(self):
         """Setup required indexes and their settings."""
+        if not MEILISEARCH_AVAILABLE or self.admin_client is None:
+            logger.warning("MeiliSearch not available - cannot setup indexes")
+            return {"error": "MeiliSearch not available"}
+            
         try:
             # Create trades index
             trades_index = self.admin_client.index('trades_index')

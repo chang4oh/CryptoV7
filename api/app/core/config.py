@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     MEILISEARCH_MASTER_KEY: str = Field(default="", env="MEILISEARCH_MASTER_KEY")
     MEILISEARCH_SEARCH_KEY: str = Field(default="", env="MEILISEARCH_SEARCH_KEY")
     
+    # MongoDB settings
+    MONGODB_URI: str = Field(default="mongodb://localhost:27017", env="MONGODB_URI")
+    MONGODB_DB_NAME: str = Field(default="cryptov7", env="MONGODB_DB_NAME")
+    
     # Binance Testnet API settings
     BINANCE_TESTNET_API_KEY: str = Field(default="", env="BINANCE_API_KEY")
     BINANCE_TESTNET_SECRET_KEY: str = Field(default="", env="BINANCE_API_SECRET")
@@ -22,11 +26,15 @@ class Settings(BaseSettings):
     # No API key needed for open source models
     HUGGINGFACE_MODEL: str = "distilbert-base-uncased-finetuned-sst-2-english"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        # Allow extra fields from the .env file
-        extra = "ignore"
+    # Add these fields to your Settings class:
+    meilisearch_host: str = Field(default="http://localhost:7700", alias="MEILISEARCH_HOST")
+    api_host: str = Field(default="http://localhost:8000", alias="API_HOST")
+    
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "allow"  # This allows extra fields from .env
+    }
 
 # Initialize settings
 settings = Settings()
