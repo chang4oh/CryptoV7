@@ -60,3 +60,17 @@ htmlcov/
 Thumbs.db
 ehthumbs.db
 Desktop.ini 
+TESTING.md
+test_search.py
+test_news_api.py
+test_meilisearch_admin.py
+test_meilisearch.py
+test_external_apis.py
+test_direct_cloud.py
+test_api_search.py
+start_meilisearch.bat
+README.md
+MEILISEARCH_GUIDE.md
+MEILISEARCH_CLOUD_SETUP.md
+meilisearch.exe
+_spec.md
